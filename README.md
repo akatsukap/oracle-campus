@@ -1,6 +1,3 @@
-cd ~/3pro2025/oracle-campus
-
-cat > README.md << 'EOF'
 # Oracle Campus 🎓
 
 **Oracle Campus** は、大学内の「未来」をみんなで予測して楽しむ  
