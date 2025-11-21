@@ -1,3 +1,4 @@
+```mermaid
 classDiagram
     class Admin {
         +address adminAddr
@@ -28,4 +29,6 @@ classDiagram
     
     User --> PredictionMarket : uses
     Admin --> PredictionMarket : manages
+
     PredictionMarket *-- Market : contains
+```
