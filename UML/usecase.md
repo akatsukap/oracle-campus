@@ -1,3 +1,4 @@
+```mermaid
 usecaseDiagram
     actor Student as "学生(User)"
     actor Admin as "管理者(Admin)"
@@ -19,4 +20,6 @@ usecaseDiagram
     Student --> UC5
     
     Admin --> UC6
+
     Admin --> UC7
+```
