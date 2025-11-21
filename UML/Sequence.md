@@ -1,3 +1,4 @@
+```mermaid
 sequenceDiagram
     participant Student as 学生
     participant UI as Streamlit画面
@@ -14,4 +15,6 @@ sequenceDiagram
     UI-->>Student: 「ベット完了しました！」表示
     UI->>Chain: 最新のオッズ情報を再取得
     Chain-->>UI: データ返却
+
     UI-->>Student: 画面更新(賭け金増加を確認)
+```
