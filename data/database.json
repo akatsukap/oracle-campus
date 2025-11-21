@@ -1,1 +1,15 @@
-{"users": {}, "markets": [], "bets": []}
+{"users": {
+    "aoi":{"points":1000}
+    },
+ "markets": [
+    {
+      "id": 1,
+      "question": "Will it rain tomorrow?",
+      "outcomes": ["Yes", "No"],
+      "status": "open",
+      "yes_bets": 0,
+      "no_bets": 0,
+      "result": null
+    }
+],
+  "bets": []}
