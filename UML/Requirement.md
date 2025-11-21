@@ -1,3 +1,4 @@
+```mermaid
 requirementDiagram
     requirement GameExperience {
         id: 1
@@ -22,4 +23,6 @@ requirementDiagram
     }
     MarketApp - satisfies -> GameExperience
     MarketApp - satisfies -> Transparency
+
     MarketApp - satisfies -> WalletLogin
+```
