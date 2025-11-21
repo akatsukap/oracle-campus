@@ -1,3 +1,4 @@
+```mermaid
 graph LR
     %% アクターの定義
     Student((学生<br>User))
@@ -27,3 +28,5 @@ graph LR
     %% 見た目の調整（アクターを丸くする）
     classDef actor fill:#f9f,stroke:#333,stroke-width:2px;
     class Student,Admin actor;
+
+```
