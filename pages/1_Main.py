@@ -1,184 +1,194 @@
-# ...existing code...
 import streamlit as st
-from utils import load_data
 import time
 from datetime import datetime
 
-# 互換性ありの再実行ヘルパー
-def _safe_rerun():
-    """st.experimental_rerun が無ければ内部の RerunException を投げる / 最終フォールバックで停止する"""
+# 作成した Web3Manager を読み込む
+# ※ 環境に合わせて data.fibase からインポートするように調整
+try:
+    from data.fibase import Web3Manager
+except ImportError:
+    st.error("data/fibase.py が見つかりません。配置を確認してください。")
+    st.stop()
+
+def app():
+    # ページ設定（ページ単体で実行された場合の設定）
+    # st.set_page_config は app.py から遷移してきた場合は無視されますが、直接実行時のために残します
     try:
-        # 標準的な API があれば使う
-        if hasattr(st, "experimental_rerun"):
-            st.experimental_rerun()
-            return
-    except Exception:
+        st.set_page_config(page_title="Oracle Campus", page_icon="🎓")
+    except:
         pass
 
-    # internal API に頼る（存在すれば例外を投げて再実行させる）
+    st.title("Oracle Campus 🎓")
+    st.subheader("予測市場ダッシュボード")
+
+    # ─────────────────────────────
+    # 1. Web3 接続 & データ取得
+    # ─────────────────────────────
     try:
-        from streamlit.runtime.scriptrunner.script_runner import RerunException
-        raise RerunException()
-    except Exception:
-        # 最終フォールバック: セッションフラグを立てて処理を止める
-        st.session_state["_rerun_requested"] = True
+        # Web3マネージャーを起動（ここでブロックチェーンに繋ぐ）
+        # キャッシュを使ってリソースを節約しても良いですが、今回はシンプルに都度接続します
+        manager = Web3Manager()
+        
+        # 自分の残高を表示 (fibase.py のメソッド名は get_balance)
+        my_balance = manager.get_balance()
+        st.sidebar.metric(label="あなたの所持ポイント", value=f"{my_balance} OCP")
+        
+        # 全市場データをブロックチェーンから取得
+        markets = manager.get_all_markets()
+        
+    except Exception as e:
+        st.error(f"Web3接続エラー: {e}")
+        st.warning("⚠️ .envファイルの設定や、RPC URLが正しいか確認してください。")
         st.stop()
 
-# --- Web3 の安全な初期化（失敗時は None を返す） ---
-@st.cache_resource
-def get_web3_manager_safe():
-    try:
-        # data ディレクトリにある fibase モジュールを利用
-        from data.fibase import Web3Manager
-        mgr = Web3Manager()
-        return mgr
-    except Exception as e:
-        # 初期化失敗は UI に表示するが例外は投げない
-        st.session_state.setdefault("_web3_init_error", str(e))
-        return None
+    st.divider()
 
-# メインページ：ダッシュボード
-st.title("Oracle Campus 🎓")
-st.subheader("予測市場ダッシュボード（メイン画面）")
+    # ─────────────────────────────
+    # 2. 募集中のイベント一覧を表示
+    # ─────────────────────────────
+    st.markdown("### 📈 募集中の予測イベント")
 
-# ユーザーIDの取得
-user_id = st.session_state.get("user_id")
+    # まだ結果が出ていない（resolved == False）市場だけを抽出
+    # fibase の get_all_markets は辞書を返すのでキーアクセスでOK
+    open_markets = [m for m in markets if not m['resolved']]
+    
+    # 締め切りが近い順に並び替え
+    open_markets.sort(key=lambda x: x['endTime'])
 
-if not user_id:
-    st.warning("まずトップページでユーザーを選択してください。")
+    if not open_markets:
+        st.info("現在、投票受付中のイベントはありません。管理者画面から作成してください。")
+    else:
+        for m in open_markets:
+            # コンテナを使ってカード風に表示
+            with st.container():
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.markdown(f"#### 🟢 {m['title']}")
+                    
+                    # 締め切り日時の表示変換
+                    end_ts = int(m['endTime'])
+                    end_date = datetime.fromtimestamp(end_ts)
+                    
+                    # 現在時刻と比較して終了済みかチェック（念のため）
+                    is_ended = end_ts < time.time()
+                    status_text = "終了" if is_ended else "受付中"
+                    st.caption(f"状態: {status_text} | 締切: {end_date.strftime('%Y/%m/%d %H:%M')}")
+                    
+                    # 投票状況の可視化
+                    total_pool = m['totalYes'] + m['totalNo']
+                    if total_pool > 0:
+                        yes_ratio = m['totalYes'] / total_pool
+                        st.progress(yes_ratio, text=f"Yes率: {int(yes_ratio*100)}%")
+                    else:
+                        st.text("まだ投票がありません")
+
+                with col2:
+                    st.write(f"Yes: **{m['totalYes']}**")
+                    st.write(f"No: **{m['totalNo']}**")
+                    
+                    # 「投票する」ボタン
+                    # 押すと session_state にIDを保存して、投票ページへ誘導するメッセージを出す
+                    if not is_ended:
+                        if st.button("投票へ進む 🗳️", key=f"btn_{m['id']}"):
+                            st.session_state["selected_market_id"] = m['id']
+                            st.success(f"「{m['title']}」を選択しました！\nサイドバーから「Vote」ページに移動してください。")
+                    else:
+                        st.button("受付終了", disabled=True, key=f"btn# filepath: /home/c0a2200400/3pro2025/oracle-campus/pages/1_Main.py
+import streamlit as st
+import time
+from datetime import datetime
+
+# 作成した Web3Manager を読み込む
+# ※ 環境に合わせて data.fibase からインポートするように調整
+try:
+    from data.fibase import Web3Manager
+except ImportError:
+    st.error("data/fibase.py が見つかりません。配置を確認してください。")
     st.stop()
 
-# データの読み込み（ローカル）
-data = load_data() or {}
-users = data.get("users", {}) if isinstance(data, dict) else {}
-local_markets = data.get("markets", []) if isinstance(data, dict) else []
-
-# Web3 マネージャの取得（キャッシュ）
-web3_mgr = get_web3_manager_safe()
-
-# オンチェーン市場を取得（可能なときのみ）。手動更新ボタンを提供
-col1, col2 = st.columns([1, 3])
-with col1:
-    if web3_mgr is None:
-        st.info("ブロックチェーン接続が無効です（環境変数やABI、RPC URL を確認してください）。")
-        if st.session_state.get("_web3_init_error"):
-            st.caption(st.session_state["_web3_init_error"])
-    else:
-        if st.button("オンチェーン市場を更新"):
-            # キャッシュをクリアして再取得
-            get_web3_manager_safe.clear()
-            web3_mgr = get_web3_manager_safe()
-
-with col2:
-    if web3_mgr:
-        try:
-            onchain_raw = web3_mgr.get_all_markets() or []
-        except Exception as e:
-            st.warning(f"オンチェーン市場の取得に失敗しました: {e}")
-            onchain_raw = []
-    else:
-        onchain_raw = []
-
-# onchain_raw をアプリ内部の market 形式に変換
-def _to_local_market(m):
-    # fibase の get_all_markets は id, title, endTime, totalYes, totalNo, resolved, outcome
+def app():
+    # ページ設定（ページ単体で実行された場合の設定）
+    # st.set_page_config は app.py から遷移してきた場合は無視されますが、直接実行時のために残します
     try:
-        end_ts = int(m.get("endTime") or 0)
-    except Exception:
-        end_ts = 0
-    status = "closed" if m.get("resolved") else ("open" if (end_ts == 0 or end_ts > int(time.time())) else "closed")
-    return {
-        "id": str(m.get("id")),
-        "title": m.get("title") or "タイトル未設定",
-        "description": m.get("description", "") or "",
-        "end_time": end_ts,
-        "yes_bets": int(m.get("totalYes", 0)),
-        "no_bets": int(m.get("totalNo", 0)),
-        "status": status,
-        "result": m.get("outcome") if m.get("resolved") else None,
-        "source": "onchain",
-    }
-
-onchain_markets = [_to_local_market(m) for m in onchain_raw]
-
-# ローカル市場にも source フラグを付ける
-for lm in local_markets:
-    lm.setdefault("id", str(lm.get("id", "")))
-    lm["source"] = lm.get("source", "local")
-
-# マージ（onchain を優先し、存在しないローカルは追加）
-merged = {}
-for m in local_markets:
-    merged[str(m.get("id"))] = m
-for m in onchain_markets:
-    merged[str(m.get("id"))] = m  # onchain があれば上書き
-
-markets = list(merged.values())
-
-# ユーザー情報の確認
-user = users.get(user_id)
-
-if not user:
-    st.error(f"ユーザー {user_id} の情報が見つかりません。管理者に連絡してください。")
-    st.stop()
-
-# ─────────────────────────────
-# 1. 自分のポイント情報（ローカル表示）
-# ─────────────────────────────
-st.markdown("### 👤 あなたのステータス")
-st.write(f"- ユーザーID：`{user_id}`")
-st.write(f"- 所持ポイント：**{user.get('points', 0)} OCP**")
-
-# オプション：サーバー側の Web3 アカウント残高を表示（存在する場合のみ）
-if web3_mgr:
-    try:
-        bal = web3_mgr.get_balance()
-        st.write(f"- コントラクトに登録されたサーバーアカウント残高（参考）：**{bal} OCP**")
-    except Exception:
+        st.set_page_config(page_title="Oracle Campus", page_icon="🎓")
+    except:
         pass
 
-st.divider()
+    st.title("Oracle Campus 🎓")
+    st.subheader("予測市場ダッシュボード")
 
-# ─────────────────────────────
-# 2. 募集中のイベント一覧（マージ結果）
-# ─────────────────────────────
-st.markdown("### 📈 募集中の予測イベント")
+    # ─────────────────────────────
+    # 1. Web3 接続 & データ取得
+    # ─────────────────────────────
+    try:
+        # Web3マネージャーを起動（ここでブロックチェーンに繋ぐ）
+        # キャッシュを使ってリソースを節約しても良いですが、今回はシンプルに都度接続します
+        manager = Web3Manager()
+        
+        # 自分の残高を表示 (fibase.py のメソッド名は get_balance)
+        my_balance = manager.get_balance()
+        st.sidebar.metric(label="あなたの所持ポイント", value=f"{my_balance} OCP")
+        
+        # 全市場データをブロックチェーンから取得
+        markets = manager.get_all_markets()
+        
+    except Exception as e:
+        st.error(f"Web3接続エラー: {e}")
+        st.warning("⚠️ .envファイルの設定や、RPC URLが正しいか確認してください。")
+        st.stop()
 
-open_markets = [m for m in markets if m.get("status") == "open"]
-open_markets.sort(key=lambda x: x.get("end_time", 0) or 0)
+    st.divider()
 
-if not open_markets:
-    st.info("現在、投票受付中のイベントはありません。")
-else:
-    for m in open_markets:
-        st.markdown(f"#### 🟢 {m.get('title', 'タイトル未設定')}")
-        if desc := m.get("description"):
-            st.write(desc)
+    # ─────────────────────────────
+    # 2. 募集中のイベント一覧を表示
+    # ─────────────────────────────
+    st.markdown("### 📈 募集中の予測イベント")
 
-        st.write(
-            f"- Yes 合計：**{m.get('yes_bets', 0)}** OCP  "
-            f"- No 合計：**{m.get('no_bets', 0)}** OCP  "
-            f"- ソース：`{m.get('source')}`"
-        )
+    # まだ結果が出ていない（resolved == False）市場だけを抽出
+    # fibase の get_all_markets は辞書を返すのでキーアクセスでOK
+    open_markets = [m for m in markets if not m['resolved']]
+    
+    # 締め切りが近い順に並び替え
+    open_markets.sort(key=lambda x: x['endTime'])
 
-        # 投票ページへの遷移（session_state に選択マーケットを入れる）
-        market_id = m.get("id")
-        if st.button("このイベントに投票する 🗳️", key=f"vote_{market_id}"):
-            st.session_state["selected_market"] = market_id
-            _safe_rerun()
+    if not open_markets:
+        st.info("現在、投票受付中のイベントはありません。管理者画面から作成してください。")
+    else:
+        for m in open_markets:
+            # コンテナを使ってカード風に表示
+            with st.container():
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.markdown(f"#### 🟢 {m['title']}")
+                    
+                    # 締め切り日時の表示変換
+                    end_ts = int(m['endTime'])
+                    end_date = datetime.fromtimestamp(end_ts)
+                    
+                    # 現在時刻と比較して終了済みかチェック（念のため）
+                    is_ended = end_ts < time.time()
+                    status_text = "終了" if is_ended else "受付中"
+                    st.caption(f"状態: {status_text} | 締切: {end_date.strftime('%Y/%m/%d %H:%M')}")
+                    
+                    # 投票状況の可視化
+                    total_pool = m['totalYes'] + m['totalNo']
+                    if total_pool > 0:
+                        yes_ratio = m['totalYes'] / total_pool
+                        st.progress(yes_ratio, text=f"Yes率: {int(yes_ratio*100)}%")
+                    else:
+                        st.text("まだ投票がありません")
 
-        st.divider()
-
-# ─────────────────────────────
-# 3. 終了済みイベント（サマリ）
-# ─────────────────────────────
-st.markdown("### ✅ 終了したイベント（サマリ）")
-
-closed_markets = [m for m in markets if m.get("status") == "closed"]
-closed_markets.sort(key=lambda x: x.get("end_time", 0) or 0, reverse=True)
-
-if not closed_markets:
-    st.write("まだ終了したイベントはありません。")
-else:
-    for m in closed_markets:
-        st.markdown(f"- **{m.get('title', 'タイトル未設定')}**：結果 → `{m.get('result', '未確定')}` （ソース：`{m.get('source')}`）")
+                with col2:
+                    st.write(f"Yes: **{m['totalYes']}**")
+                    st.write(f"No: **{m['totalNo']}**")
+                    
+                    # 「投票する」ボタン
+                    # 押すと session_state にIDを保存して、投票ページへ誘導するメッセージを出す
+                    if not is_ended:
+                        if st.button("投票へ進む 🗳️", key=f"btn_{m['id']}"):
+                            st.session_state["selected_market_id"] = m['id']
+                            st.success(f"「{m['title']}」を選択しました！\nサイドバーから「Vote」ページに移動してください。")
+                    else:
+                        st.button("受付終了", disabled=True, key=f"btn
