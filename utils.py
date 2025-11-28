@@ -70,3 +70,32 @@ def init_sample_data():
         ],
         "bets": [],
     }
+
+
+
+
+# utils.py
+
+markets = []
+market_id_counter = 1
+
+def create_market(title, description, end_datetime):
+    global market_id_counter
+    markets.append({
+        "id": market_id_counter,
+        "title": title,
+        "description": description,
+        "end_datetime": end_datetime,
+        "status": "open"
+    })
+    market_id_counter += 1
+
+def resolve_market(market_id, result):
+    for m in markets:
+        if m["id"] == market_id:
+            m["result"] = result
+            m["status"] = "closed"
+            break
+
+def list_markets():
+    return markets
