@@ -14,7 +14,11 @@ class Web3Manager:
         self.chain_id = 11155111 # Sepoliaの場合
 
         # コントラクトの準備
-        with open("abi.json", "r") as f:
+        # utils/abi.json の絶対パスを作成
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # utils フォルダ
+        ABI_PATH = os.path.join(BASE_DIR, "abi.json")
+
+        with open(ABI_PATH, "r") as f:
             abi = json.load(f)
         self.contract = self.w3.eth.contract(
             address=os.getenv("CONTRACT_ADDRESS"), 
