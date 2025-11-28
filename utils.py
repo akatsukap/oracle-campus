@@ -1,77 +1,101 @@
-# ...existing code...
-import os
+from pathlib import Path
 import json
-import uuid
-from datetime import datetime
-from typing import List, Dict, Any
 
-DATA_FILE = os.path.join(os.path.dirname(__file__), "markets.json")
+# data/database.json のパス
+DATA_PATH = Path(__file__).parent / "data" / "database.json"
 
-def _ensure_file():
-    if not os.path.exists(DATA_FILE):
-        _save_markets([])
+# データの初期形
+DEFAULT_DATA = {
+    "users": {},
+    "markets": [],
+    "bets": [],
+}
 
-def _load_markets() -> List[Dict[str, Any]]:
+
+def load_data():
+    """database.json を読み込んで dict を返す。なければ初期データを返す。"""
+    if not DATA_PATH.exists():
+        # ファイルがない場合は初期データを返す
+        return DEFAULT_DATA.copy()
+
     try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return []
-    except Exception:
-        return []
+        with DATA_PATH.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError:
+        # 壊れた JSON の場合も初期データにフォールバック
+        return DEFAULT_DATA.copy()
 
-def _save_markets(markets: List[Dict[str, Any]]) -> None:
-    tmp = DATA_FILE + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(markets, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, DATA_FILE)
+    # 必要なキーが欠けていたら補完する（安全のため）
+    for key, default_value in DEFAULT_DATA.items():
+        if key not in data:
+            data[key] = default_value.copy() if isinstance(default_value, dict) else default_value
+    return data
 
-def create_market(title: str, description: str, end_datetime_iso: str) -> Dict[str, Any]:
-    """
-    新しいマーケットを作成して保存する。戻り値は作成したマーケット辞書。
-    """
-    _ensure_file()
-    markets = _load_markets()
-    m = {
-        "id": uuid.uuid4().hex,
+
+def save_data(data: dict):
+    """dict を database.json に保存する。"""
+    DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with DATA_PATH.open("w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+
+def init_sample_data():
+    """初回用のサンプルデータを返す。"""
+    return {
+        "users": {
+            "user1": {"points": 1000},
+            "user2": {"points": 1000},
+            "user3": {"points": 1000},
+        },
+        "markets": [
+            {
+                "id": 1,
+                "title": "明日の天気は晴れか？",
+                "description": "明日の昼12時時点で晴れているかどうか。",
+                "status": "open",
+                "yes_bets": 0,
+                "no_bets": 0,
+                "result": None,
+            },
+            {
+                "id": 2,
+                "title": "今週の学食来客数は1,000人を超える？",
+                "description": "月〜金の合計来客数。",
+                "status": "open",
+                "yes_bets": 0,
+                "no_bets": 0,
+                "result": None,
+            },
+        ],
+        "bets": [],
+    }
+
+
+
+
+# utils.py
+
+markets = []
+market_id_counter = 1
+
+def create_market(title, description, end_datetime):
+    global market_id_counter
+    markets.append({
+        "id": market_id_counter,
         "title": title,
         "description": description,
-        "end_datetime": end_datetime_iso,
-        "status": "open",
-        "created_at": datetime.utcnow().isoformat() + "Z",
-    }
-    markets.append(m)
-    _save_markets(markets)
-    return m
+        "end_datetime": end_datetime,
+        "status": "open"
+    })
+    market_id_counter += 1
 
-def list_markets() -> List[Dict[str, Any]]:
-    """
-    保存済みのマーケット一覧を返す（順序は作成順）。
-    """
-    _ensure_file()
-    return _load_markets()
-
-def get_market(market_id: str) -> Dict[str, Any]:
-    for m in list_markets():
-        if m.get("id") == market_id:
-            return m
-    raise KeyError("market not found")
-
-def resolve_market(market_id: str, result: str) -> Dict[str, Any]:
-    """
-    指定マーケットを確定（close）し、result を保存する。
-    """
-    markets = _load_markets()
-    found = False
+def resolve_market(market_id, result):
     for m in markets:
-        if m.get("id") == market_id:
-            m["status"] = "closed"
+        if m["id"] == market_id:
             m["result"] = result
-            m["resolved_at"] = datetime.utcnow().isoformat() + "Z"
-            found = True
+            m["status"] = "closed"
             break
-    if not found:
-        raise KeyError(f"market {market_id} not found")
-    _save_markets(markets)
-    return m
-# ...existing code...
+
+def list_markets():
+    return markets

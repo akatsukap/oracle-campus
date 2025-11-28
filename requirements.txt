@@ -1,2 +1,4 @@
 streamlit
 pandas
+web3
+python-dotenv
