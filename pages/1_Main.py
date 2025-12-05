@@ -10,7 +10,7 @@ def _safe_rerun():
     try:
         # 標準的な API があれば使う
         if hasattr(st, "experimental_rerun"):
-            st.experimental_rerun()
+            st.rerun()
             return
     except Exception:
         pass
