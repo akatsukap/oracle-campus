@@ -1,99 +1,132 @@
-import streamlit as st
+# filepath: pages/1_Main.py
 import time
 from datetime import datetime
 
-# 作成した Web3Manager を読み込む
-# ※ 環境に合わせて data.fibase からインポートするように調整
+import streamlit as st
+
+
+# --- Web3Manager を安全に初期化（失敗してもアプリが落ちないように） ---
+@st.cache_resource
+def get_web3_manager():
+    """data.fibase.Web3Manager をキャッシュ付きで生成する"""
+    from data.fibase import Web3Manager  # 遅延インポート（起動時エラーを防ぐ）
+    return Web3Manager()
+
+
+# --- ページ設定（マルチページ時は二重設定されても無視されるので try で囲む） ---
 try:
-    from data.fibase import Web3Manager
-except ImportError:
-    st.error("data/fibase.py が見つかりません。配置を確認してください。")
+    st.set_page_config(page_title="Oracle Campus", page_icon="🎓")
+except Exception:
+    pass
+
+st.title("Oracle Campus 🎓")
+st.subheader("予測市場ダッシュボード（メイン画面）")
+
+# ─────────────────────────────
+# 0. ログイン（ユーザー選択）チェック
+# ─────────────────────────────
+user_id = st.session_state.get("user_id")
+if not user_id:
+    st.warning("まず app.py のトップ画面でユーザーを選択してください。")
     st.stop()
 
-def app():
-    # ページ設定（ページ単体で実行された場合の設定）
-    try:
-        st.set_page_config(page_title="Oracle Campus", page_icon="🎓")
-    except:
-        pass
+st.caption(f"現在のユーザー: `{user_id}`")
 
-    st.title("Oracle Campus 🎓")
-    st.subheader("予測市場ダッシュボード")
+st.divider()
 
-    # ─────────────────────────────
-    # 1. Web3 接続 & データ取得
-    # ─────────────────────────────
+# ─────────────────────────────
+# 1. Web3 接続 & データ取得
+# ─────────────────────────────
+with st.spinner("ブロックチェーンから市場情報を取得しています…"):
     try:
-        # Web3マネージャーを起動
-        manager = Web3Manager()
-        
-        # 自分の残高を表示
-        my_balance = manager.get_balance()
-        st.sidebar.metric(label="あなたの所持ポイント", value=f"{my_balance} OCP")
-        
-        # 全市場データをブロックチェーンから取得
-        markets = manager.get_all_markets()
-        
+        web3_mgr = get_web3_manager()
+        # 自分の残高を取得
+        my_balance = web3_mgr.get_balance()
+        # 全市場リストを取得
+        markets = web3_mgr.get_all_markets() or []
     except Exception as e:
-        st.error(f"Web3接続エラー: {e}")
-        st.warning("⚠️ .envファイルの設定や、RPC URLが正しいか確認してください。")
+        st.error(f"Web3 接続またはデータ取得に失敗しました: {e}")
+        st.warning("`.env` の設定や RPC URL / コントラクトアドレスを確認してください。")
         st.stop()
 
-    st.divider()
+# サイドバーに残高表示
+st.sidebar.metric("あなたの所持ポイント", f"{my_balance} OCP")
 
-    # ─────────────────────────────
-    # 2. 募集中のイベント一覧を表示
-    # ─────────────────────────────
-    st.markdown("### 📈 募集中の予測イベント")
+st.divider()
 
-    # まだ結果が出ていない（resolved == False）市場だけを抽出
-    open_markets = [m for m in markets if not m['resolved']]
-    
-    # 締め切りが近い順に並び替え
-    open_markets.sort(key=lambda x: x['endTime'])
+# ─────────────────────────────
+# 2. 募集中のイベント一覧
+# ─────────────────────────────
+st.markdown("### 📈 募集中の予測イベント")
 
-    if not open_markets:
-        st.info("現在、投票受付中のイベントはありません。管理者画面から作成してください。")
-    else:
-        for m in open_markets:
-            # コンテナを使ってカード風に表示
-            with st.container():
-                col1, col2 = st.columns([3, 1])
-                
-                with col1:
-                    st.markdown(f"#### 🟢 {m['title']}")
-                    
-                    # 締め切り日時の表示変換
-                    end_ts = int(m['endTime'])
-                    end_date = datetime.fromtimestamp(end_ts)
-                    
-                    # 現在時刻と比較して終了済みかチェック
-                    is_ended = end_ts < time.time()
-                    status_text = "終了" if is_ended else "受付中"
-                    st.caption(f"状態: {status_text} | 締切: {end_date.strftime('%Y/%m/%d %H:%M')}")
-                    
-                    # 投票状況の可視化
-                    total_pool = m['totalYes'] + m['totalNo']
-                    if total_pool > 0:
-                        yes_ratio = m['totalYes'] / total_pool
-                        st.progress(yes_ratio, text=f"Yes率: {int(yes_ratio*100)}%")
-                    else:
-                        st.text("まだ投票がありません")
+# resolved == False の市場のみ
+open_markets = [m for m in markets if not m.get("resolved")]
+# 締め切りが近い順にソート
+open_markets.sort(key=lambda x: int(m.get("endTime", 0)) if (m := x) else 0)
 
-                with col2:
-                    st.write(f"Yes: **{m['totalYes']}**")
-                    st.write(f"No: **{m['totalNo']}**")
-                    
-                    # 「投票する」ボタン
-                    if not is_ended:
-                        if st.button("投票へ進む 🗳️", key=f"btn_{m['id']}"):
-                            st.session_state["selected_market_id"] = m['id']
-                            st.success(f"「{m['title']}」を選択しました！\nサイドバーから「Vote」ページに移動してください。")
-                    else:
-                        # ここがエラーの原因でした。正しく修正しました。
-                        st.button("受付終了", disabled=True, key=f"btn_end_{m['id']}")
+if not open_markets:
+    st.info("現在、投票受付中のイベントはありません。管理者画面からイベントを作成してください。")
+else:
+    now_ts = time.time()
+
+    for m in open_markets:
+        market_id = m.get("id")
+        title = m.get("title", "タイトル未設定")
+
+        # タイムスタンプ → 日付
+        try:
+            end_ts = int(m.get("endTime", 0) or 0)
+            end_dt = datetime.fromtimestamp(end_ts)
+        except Exception:
+            end_ts = 0
+            end_dt = None
+
+        is_ended = bool(end_ts and end_ts < now_ts)
+        status_text = "終了" if is_ended else "受付中"
+
+        total_yes = int(m.get("totalYes", 0) or 0)
+        total_no = int(m.get("totalNo", 0) or 0)
+        total_pool = total_yes + total_no
+
+        with st.container():
+            col1, col2 = st.columns([3, 1])
+
+            # --- 左カラム：タイトル・締切・Yes率 ---
+            with col1:
+                st.markdown(f"#### 🟢 {title}")
+
+                caption_parts = [f"状態: {status_text}"]
+                if end_dt:
+                    caption_parts.append(f"締切: {end_dt.strftime('%Y/%m/%d %H:%M')}")
+                st.caption(" | ".join(caption_parts))
+
+                if total_pool > 0:
+                    yes_ratio = total_yes / total_pool
+                    st.progress(yes_ratio, text=f"Yes率: {int(yes_ratio * 100)}%")
+                else:
+                    st.text("まだ投票がありません")
+
+            # --- 右カラム：数値とボタン ---
+            with col2:
+                st.write(f"Yes: **{total_yes}** OCP")
+                st.write(f"No: **{total_no}** OCP")
+
+                if not is_ended:
+                    if st.button("投票へ進む 🗳️", key=f"vote_{market_id}"):
+                        # Vote ページで使うマーケットIDを保存
+                        st.session_state["selected_market_id"] = market_id
+                        st.success(
+                            f"「{title}」を選択しました。\n"
+                            "サイドバーから **Vote** ページに移動して投票してください。"
+                        )
+                else:
+                    st.button("受付終了", disabled=True, key=f"closed_{market_id}")
 
             st.divider()
 
-if __name__ == "__main__":
-    app()
+# ─────────────────────────────
+# 3. （おまけ）デバッグ情報
+# ─────────────────────────────
+with st.expander("🔍 デバッグ情報（開発者向け）"):
+    st.write("取得した市場データ（先頭 3 件を表示）")
+    st.json(markets[:3])
