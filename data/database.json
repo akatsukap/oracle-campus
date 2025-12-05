@@ -1,7 +1,7 @@
 {
   "users": {
     "user1": {
-      "points": 990
+      "points": 989
     },
     "user2": {
       "points": 0
@@ -16,7 +16,7 @@
       "title": "明日の天気は晴れか？",
       "description": "明日の昼12時時点で晴れているかどうか。",
       "status": "open",
-      "yes_bets": 997,
+      "yes_bets": 998,
       "no_bets": 0,
       "result": null,
       "end_time": 0,
@@ -97,6 +97,13 @@
       "choice": "yes",
       "amount": 10,
       "ts": "2025-12-05T06:02:39.928691"
+    },
+    {
+      "user": "user1",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 1,
+      "ts": "2025-12-05T08:05:44.855311"
     }
   ]
 }

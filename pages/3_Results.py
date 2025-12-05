@@ -2,23 +2,68 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import streamlit as st
-import pandas as p
+import pandas as pd
 
 from utils import load_data, save_data
 
 # Web3 manager を安全にインポート（無ければ None にする）。
 # ページは Web3 がなくても動くようにする（resolve はローカルフォールバックあり）。
 
-from utils.web3_manager import web3_managert
+from utils.web3_manager import Web3Manager
+
+# Web3 の安全初期化（失敗してもページはローカルフォールバックで動く）
+web3_mgr = None
+try:
+	# sys.path は上で調整済み。初期化できれば接続成功の旨をサイドバーに表示
+	web3_mgr = Web3Manager()
+	try:
+		st.sidebar.success("Web3 接続成功 ✅")
+	except Exception:
+		pass
+except Exception as e:
+	web3_mgr = None
+	try:
+		st.sidebar.warning(f"Web3 利用不可（フォールバック）: {e}")
+	except Exception:
+		pass
 
 def main():
 	st.title("結果・ランキング")
 
-	# データ読み込み
-	data = load_data() or {}
-	users = data.get("users", {})
-	markets = data.get("markets", [])
-	bets = data.get("bets", [])
+	# モジュールレベルの web3_mgr を関数内で参照/代入することを明示
+	global web3_mgr
+
+	# データ読み込み: ユーザー／bets はローカルを参照、
+	# markets は可能ならオンチェーンを優先して取得する
+	local_data = load_data() or {}
+	users = local_data.get("users", {})
+	bets = local_data.get("bets", [])
+
+	# markets をオンチェーンから取得（可能なら）
+	markets = []
+	if web3_mgr:
+		try:
+			onchain_raw = web3_mgr.get_all_markets() or []
+			for m in onchain_raw:
+				status = "closed" if m.get("resolved") else "open"
+				markets.append({
+					"id": m.get("id"),
+					"title": m.get("title"),
+					"description": "",
+					"status": status,
+					"yes_bets": int(m.get("totalYes", 0)),
+					"no_bets": int(m.get("totalNo", 0)),
+					"result": m.get("outcome") if m.get("resolved") else None,
+				})
+		except Exception as e:
+			# オンチェーン取得に失敗したらローカルにフォールバック
+			try:
+				st.warning(f"オンチェーン市場の取得に失敗しました（フォールバック）: {e}")
+			except Exception:
+				pass
+			markets = local_data.get("markets", [])
+	else:
+		markets = local_data.get("markets", [])
 
 	# セッションから選択ユーザーを取得（`app.py` で選択されていることを前提とする）
 	user_id = st.session_state.get("user_id")
@@ -29,8 +74,7 @@ def main():
 	# ベースポイント
 	base_points = int(users.get(user_id, {}).get("points", 0))
 
-	# Web3 manager は必要時に初期化する（resolve のとき）
-	web3_mgr = None
+	# モジュールレベルで初期化した `web3_mgr` を使う (既に global を冒頭で宣言済み)
 
 	# オンチェーン残高はデフォルト 0（最小限のオンチェーン依存）
 	onchain_points = 0
@@ -192,32 +236,31 @@ def main():
 					st.error("市場 ID を入力してください")
 				else:
 					try:
-						if Web3Manager is None:
+						if web3_mgr is None:
 							st.warning("Web3 が利用できません。ローカルデータで確定します。")
 							# ローカルフォールバック: markets を更新して保存
 							for m in markets:
 								if str(m.get("id")) == str(mid):
 									m["status"] = "closed"
 									m["result"] = outcome
-							data["markets"] = markets
-							save_data(data)
+							local_data["markets"] = markets
+							save_data(local_data)
 							st.success("ローカルデータで市場を確定しました（フォールバック）。")
 							st.experimental_rerun()
 						else:
-							# Web3Manager を初期化して resolve_market を実行
-							web3_mgr = Web3Manager()
+							# 既存の web3_mgr を使うか、なければ新規に作る（ローカル変数 mgr）
+							mgr = web3_mgr or Web3Manager()
 							onchain_outcome = True if outcome == "yes" else False
-
-							utils.resolve_market(self, market_id, outcome)
-							st.write("結果:", result)
-							st.success(f"オンチェーンでの確定リクエスト送信完了: {str(receipt)}")
+							receipt = mgr.resolve_market(int(mid), onchain_outcome)
+							st.write("結果:", onchain_outcome)
+							st.success(f"オンチェーンでの確定リクエスト送信完了: {receipt.transactionHash.hex()}")
 							# ローカルにも状態を反映しておく
 							for m in markets:
 								if str(m.get("id")) == str(mid):
 									m["status"] = "closed"
 									m["result"] = outcome
-							data["markets"] = markets
-							save_data(data)
+							local_data["markets"] = markets
+							save_data(local_data)
 							st.experimental_rerun()
 					except Exception as e:
 						st.error(f"市場確定に失敗しました: {e}")
