@@ -87,7 +87,7 @@ if not selected_market:
 	sel = st.selectbox("投票するイベントを選ぶ", options=[(id, title) for id, title in options], format_func=lambda x: f"{x[0]} - {dict(options)[x[0]]}")
 	if st.button("このイベントを選択して投票へ進む"):
 		st.session_state["selected_market"] = sel[0] if isinstance(sel, tuple) else sel
-		st.experimental_rerun()
+		st.rerun()
 
 	st.stop()
 
@@ -169,5 +169,5 @@ if st.button("投票する（送信）"):
 
 	# 送信後は選択解除してメインに戻る
 	st.session_state.pop("selected_market", None)
-	st.experimental_rerun()
+	st.rerun()
 

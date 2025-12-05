@@ -4,7 +4,7 @@
       "points": 1000
     },
     "user2": {
-      "points": 1000
+      "points": 0
     },
     "user3": {
       "points": 1000
@@ -16,19 +16,80 @@
       "title": "明日の天気は晴れか？",
       "description": "明日の昼12時時点で晴れているかどうか。",
       "status": "open",
-      "yes_bets": 0,
+      "yes_bets": 987,
       "no_bets": 0,
-      "result": null
+      "result": null,
+      "end_time": 0,
+      "source": "local"
     },
     {
       "id": 2,
       "title": "今週の学食来客数は1,000人を超える？",
       "description": "月〜金の合計来客数。",
       "status": "open",
-      "yes_bets": 0,
+      "yes_bets": 13,
       "no_bets": 0,
-      "result": null
+      "result": null,
+      "end_time": 0,
+      "source": "local"
     }
   ],
-  "bets": []
+  "bets": [
+    {
+      "user": "user2",
+      "market_id": 2,
+      "choice": "yes",
+      "amount": 1,
+      "ts": "2025-12-02T04:02:50.779834"
+    },
+    {
+      "user": "user2",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 1,
+      "ts": "2025-12-02T04:03:34.582795"
+    },
+    {
+      "user": "user2",
+      "market_id": 2,
+      "choice": "yes",
+      "amount": 10,
+      "ts": "2025-12-02T04:03:49.317249"
+    },
+    {
+      "user": "user2",
+      "market_id": 2,
+      "choice": "yes",
+      "amount": 1,
+      "ts": "2025-12-02T04:03:56.869677"
+    },
+    {
+      "user": "user2",
+      "market_id": 2,
+      "choice": "yes",
+      "amount": 1,
+      "ts": "2025-12-02T04:04:11.035362"
+    },
+    {
+      "user": "user2",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 1,
+      "ts": "2025-12-02T04:04:21.702953"
+    },
+    {
+      "user": "user2",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 1,
+      "ts": "2025-12-02T04:28:59.069085"
+    },
+    {
+      "user": "user2",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 984,
+      "ts": "2025-12-02T04:29:13.470607"
+    }
+  ]
 }
