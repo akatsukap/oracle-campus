@@ -1,4 +1,5 @@
 # filepath: pages/1_Main.py
+import os  # 追加
 import time
 from datetime import datetime
 
@@ -130,3 +131,21 @@ else:
 with st.expander("🔍 デバッグ情報（開発者向け）"):
     st.write("取得した市場データ（先頭 3 件を表示）")
     st.json(markets[:3])
+
+# ─────────────────────────────
+# 4. サイドバー: 透明性の証明
+# ─────────────────────────────
+st.sidebar.markdown("---")
+st.sidebar.markdown("### ⛓️ 透明性の証明")
+
+contract_address = os.getenv("CONTRACT_ADDRESS")
+
+if contract_address:
+    st.sidebar.caption("接続中スマートコントラクト:")
+    st.sidebar.code(contract_address)
+
+    etherscan_url = f"https://sepolia.etherscan.io/address/{contract_address}"
+    st.sidebar.link_button("🔍 Etherscanで投票履歴を確認", etherscan_url)
+else:
+    st.sidebar.caption("接続中スマートコントラクト: 未設定")
+    st.sidebar.warning("`.env` の CONTRACT_ADDRESS が設定されていません。")
