@@ -182,14 +182,13 @@ def normalize_onchain_market(m):
     Returns:
         Normalized market dict matching local format
     """
-    import time as time_module
     try:
         end_ts = int(m.get("endTime") or 0)
     except (ValueError, TypeError):
         end_ts = 0
     
     is_resolved = m.get("resolved", False)
-    is_past_end = end_ts != 0 and end_ts <= int(time_module.time())
+    is_past_end = end_ts != 0 and end_ts <= int(time.time())
     status = "closed" if is_resolved or is_past_end else "open"
     
     return {
