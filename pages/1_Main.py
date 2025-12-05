@@ -1,6 +1,5 @@
-# ...existing code...
-import streamlit as st
-from utils import load_data
+# filepath: pages/1_Main.py
+import os  # 追加
 import time
 from datetime import datetime
 
@@ -24,161 +23,146 @@ def _safe_rerun():
         st.session_state["_rerun_requested"] = True
         st.stop()
 
-# --- Web3 の安全な初期化（失敗時は None を返す） ---
+# --- Web3Manager を安全に初期化（失敗してもアプリが落ちないように） ---
 @st.cache_resource
-def get_web3_manager_safe():
-    try:
-        # data ディレクトリにある fibase モジュールを利用
-        from data.fibase import Web3Manager
-        mgr = Web3Manager()
-        return mgr
-    except Exception as e:
-        # 初期化失敗は UI に表示するが例外は投げない
-        st.session_state.setdefault("_web3_init_error", str(e))
-        return None
+def get_web3_manager():
+    """data.fibase.Web3Manager をキャッシュ付きで生成する"""
+    from data.fibase import Web3Manager  # 遅延インポート（起動時エラーを防ぐ）
+    return Web3Manager()
 
-# メインページ：ダッシュボード
+
+# --- ページ設定（マルチページ時は二重設定されても無視されるので try で囲む） ---
+try:
+    st.set_page_config(page_title="Oracle Campus", page_icon="🎓")
+except Exception:
+    pass
+
 st.title("Oracle Campus 🎓")
 st.subheader("予測市場ダッシュボード（メイン画面）")
 
-# ユーザーIDの取得
+# ─────────────────────────────
+# 0. ログイン（ユーザー選択）チェック
+# ─────────────────────────────
 user_id = st.session_state.get("user_id")
-
 if not user_id:
-    st.warning("まずトップページでユーザーを選択してください。")
+    st.warning("まず app.py のトップ画面でユーザーを選択してください。")
     st.stop()
 
-# データの読み込み（ローカル）
-data = load_data() or {}
-users = data.get("users", {}) if isinstance(data, dict) else {}
-local_markets = data.get("markets", []) if isinstance(data, dict) else []
-
-# Web3 マネージャの取得（キャッシュ）
-web3_mgr = get_web3_manager_safe()
-
-# オンチェーン市場を取得（可能なときのみ）。手動更新ボタンを提供
-col1, col2 = st.columns([1, 3])
-with col1:
-    if web3_mgr is None:
-        st.info("ブロックチェーン接続が無効です（環境変数やABI、RPC URL を確認してください）。")
-        if st.session_state.get("_web3_init_error"):
-            st.caption(st.session_state["_web3_init_error"])
-    else:
-        if st.button("オンチェーン市場を更新"):
-            # キャッシュをクリアして再取得
-            get_web3_manager_safe.clear()
-            web3_mgr = get_web3_manager_safe()
-
-with col2:
-    if web3_mgr:
-        try:
-            onchain_raw = web3_mgr.get_all_markets() or []
-        except Exception as e:
-            st.warning(f"オンチェーン市場の取得に失敗しました: {e}")
-            onchain_raw = []
-    else:
-        onchain_raw = []
-
-# onchain_raw をアプリ内部の market 形式に変換
-def _to_local_market(m):
-    # fibase の get_all_markets は id, title, endTime, totalYes, totalNo, resolved, outcome
-    try:
-        end_ts = int(m.get("endTime") or 0)
-    except Exception:
-        end_ts = 0
-    status = "closed" if m.get("resolved") else ("open" if (end_ts == 0 or end_ts > int(time.time())) else "closed")
-    return {
-        "id": str(m.get("id")),
-        "title": m.get("title") or "タイトル未設定",
-        "description": m.get("description", "") or "",
-        "end_time": end_ts,
-        "yes_bets": int(m.get("totalYes", 0)),
-        "no_bets": int(m.get("totalNo", 0)),
-        "status": status,
-        "result": m.get("outcome") if m.get("resolved") else None,
-        "source": "onchain",
-    }
-
-onchain_markets = [_to_local_market(m) for m in onchain_raw]
-
-# ローカル市場にも source フラグを付ける
-for lm in local_markets:
-    lm.setdefault("id", str(lm.get("id", "")))
-    lm["source"] = lm.get("source", "local")
-
-# マージ（onchain を優先し、存在しないローカルは追加）
-merged = {}
-for m in local_markets:
-    merged[str(m.get("id"))] = m
-for m in onchain_markets:
-    merged[str(m.get("id"))] = m  # onchain があれば上書き
-
-markets = list(merged.values())
-
-# ユーザー情報の確認
-user = users.get(user_id)
-
-if not user:
-    st.error(f"ユーザー {user_id} の情報が見つかりません。管理者に連絡してください。")
-    st.stop()
-
-# ─────────────────────────────
-# 1. 自分のポイント情報（ローカル表示）
-# ─────────────────────────────
-st.markdown("### 👤 あなたのステータス")
-st.write(f"- ユーザーID：`{user_id}`")
-st.write(f"- 所持ポイント：**{user.get('points', 0)} OCP**")
-
-# オプション：サーバー側の Web3 アカウント残高を表示（存在する場合のみ）
-if web3_mgr:
-    try:
-        bal = web3_mgr.get_balance()
-        st.write(f"- コントラクトに登録されたサーバーアカウント残高（参考）：**{bal} OCP**")
-    except Exception:
-        pass
+st.caption(f"現在のユーザー: `{user_id}`")
 
 st.divider()
 
 # ─────────────────────────────
-# 2. 募集中のイベント一覧（マージ結果）
+# 1. Web3 接続 & データ取得
+# ─────────────────────────────
+with st.spinner("ブロックチェーンから市場情報を取得しています…"):
+    try:
+        web3_mgr = get_web3_manager()
+        # 自分の残高を取得
+        my_balance = web3_mgr.get_balance()
+        # 全市場リストを取得
+        markets = web3_mgr.get_all_markets() or []
+    except Exception as e:
+        st.error(f"Web3 接続またはデータ取得に失敗しました: {e}")
+        st.warning("`.env` の設定や RPC URL / コントラクトアドレスを確認してください。")
+        st.stop()
+
+# サイドバーに残高表示
+st.sidebar.metric("あなたの所持ポイント", f"{my_balance} OCP")
+
+st.divider()
+
+# ─────────────────────────────
+# 2. 募集中のイベント一覧
 # ─────────────────────────────
 st.markdown("### 📈 募集中の予測イベント")
 
-open_markets = [m for m in markets if m.get("status") == "open"]
-open_markets.sort(key=lambda x: x.get("end_time", 0) or 0)
+# resolved == False の市場のみ
+open_markets = [m for m in markets if not m.get("resolved")]
+# 締め切りが近い順にソート
+open_markets.sort(key=lambda x: int(m.get("endTime", 0)) if (m := x) else 0)
 
 if not open_markets:
-    st.info("現在、投票受付中のイベントはありません。")
+    st.info("現在、投票受付中のイベントはありません。管理者画面からイベントを作成してください。")
 else:
+    now_ts = time.time()
+
     for m in open_markets:
-        st.markdown(f"#### 🟢 {m.get('title', 'タイトル未設定')}")
-        if desc := m.get("description"):
-            st.write(desc)
-
-        st.write(
-            f"- Yes 合計：**{m.get('yes_bets', 0)}** OCP  "
-            f"- No 合計：**{m.get('no_bets', 0)}** OCP  "
-            f"- ソース：`{m.get('source')}`"
-        )
-
-        # 投票ページへの遷移（session_state に選択マーケットを入れる）
         market_id = m.get("id")
-        if st.button("このイベントに投票する 🗳️", key=f"vote_{market_id}"):
-            st.session_state["selected_market"] = market_id
-            _safe_rerun()
+        title = m.get("title", "タイトル未設定")
 
-        st.divider()
+        # タイムスタンプ → 日付
+        try:
+            end_ts = int(m.get("endTime", 0) or 0)
+            end_dt = datetime.fromtimestamp(end_ts)
+        except Exception:
+            end_ts = 0
+            end_dt = None
+
+        is_ended = bool(end_ts and end_ts < now_ts)
+        status_text = "終了" if is_ended else "受付中"
+
+        total_yes = int(m.get("totalYes", 0) or 0)
+        total_no = int(m.get("totalNo", 0) or 0)
+        total_pool = total_yes + total_no
+
+        with st.container():
+            col1, col2 = st.columns([3, 1])
+
+            # --- 左カラム：タイトル・締切・Yes率 ---
+            with col1:
+                st.markdown(f"#### 🟢 {title}")
+
+                caption_parts = [f"状態: {status_text}"]
+                if end_dt:
+                    caption_parts.append(f"締切: {end_dt.strftime('%Y/%m/%d %H:%M')}")
+                st.caption(" | ".join(caption_parts))
+
+                if total_pool > 0:
+                    yes_ratio = total_yes / total_pool
+                    st.progress(yes_ratio, text=f"Yes率: {int(yes_ratio * 100)}%")
+                else:
+                    st.text("まだ投票がありません")
+
+            # --- 右カラム：数値とボタン ---
+            with col2:
+                st.write(f"Yes: **{total_yes}** OCP")
+                st.write(f"No: **{total_no}** OCP")
+
+                if not is_ended:
+                    if st.button("投票へ進む 🗳️", key=f"vote_{market_id}"):
+                        # Vote ページで使うマーケットIDを保存
+                        st.session_state["selected_market_id"] = market_id
+                        st.success(
+                            f"「{title}」を選択しました。\n"
+                            "サイドバーから **Vote** ページに移動して投票してください。"
+                        )
+                else:
+                    st.button("受付終了", disabled=True, key=f"closed_{market_id}")
+
+            st.divider()
 
 # ─────────────────────────────
-# 3. 終了済みイベント（サマリ）
+# 3. （おまけ）デバッグ情報
 # ─────────────────────────────
-st.markdown("### ✅ 終了したイベント（サマリ）")
+with st.expander("🔍 デバッグ情報（開発者向け）"):
+    st.write("取得した市場データ（先頭 3 件を表示）")
+    st.json(markets[:3])
 
-closed_markets = [m for m in markets if m.get("status") == "closed"]
-closed_markets.sort(key=lambda x: x.get("end_time", 0) or 0, reverse=True)
+# ─────────────────────────────
+# 4. サイドバー: 透明性の証明
+# ─────────────────────────────
+st.sidebar.markdown("---")
+st.sidebar.markdown("### ⛓️ 透明性の証明")
 
-if not closed_markets:
-    st.write("まだ終了したイベントはありません。")
+contract_address = os.getenv("CONTRACT_ADDRESS")
+
+if contract_address:
+    st.sidebar.caption("接続中スマートコントラクト:")
+    st.sidebar.code(contract_address)
+
+    etherscan_url = f"https://sepolia.etherscan.io/address/{contract_address}"
+    st.sidebar.link_button("🔍 Etherscanで投票履歴を確認", etherscan_url)
 else:
-    for m in closed_markets:
-        st.markdown(f"- **{m.get('title', 'タイトル未設定')}**：結果 → `{m.get('result', '未確定')}` （ソース：`{m.get('source')}`）")
+    st.sidebar.caption("接続中スマートコントラクト: 未設定")
+    st.sidebar.warning("`.env` の CONTRACT_ADDRESS が設定されていません。")
