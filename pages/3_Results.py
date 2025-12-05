@@ -1,13 +1,15 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import streamlit as st
-import pandas as pd
-from utils import load_data
+import pandas as p
 
-# Web3 manager を安全にインポート（無ければ None にする）
-try:
-	from utils.web3_manager import Web3Manager
-except Exception:
-	Web3Manager = None
+from utils import load_data, save_data
 
+# Web3 manager を安全にインポート（無ければ None にする）。
+# ページは Web3 がなくても動くようにする（resolve はローカルフォールバックあり）。
+
+from utils.web3_manager import web3_managert
 
 def main():
 	st.title("結果・ランキング")
@@ -27,24 +29,11 @@ def main():
 	# ベースポイント
 	base_points = int(users.get(user_id, {}).get("points", 0))
 
-	# --- Web3 Manager 初期化（あれば使う） ---
+	# Web3 manager は必要時に初期化する（resolve のとき）
 	web3_mgr = None
-	if Web3Manager is not None:
-		try:
-			web3_mgr = Web3Manager()
-		except Exception as e:
-			# 初期化失敗は UI に伝えてフォールバック
-			st.session_state.setdefault("_web3_init_error", str(e))
-			web3_mgr = None
 
-	# オンチェーン残高（ユーザーに address があれば取得）
+	# オンチェーン残高はデフォルト 0（最小限のオンチェーン依存）
 	onchain_points = 0
-	user_address = users.get(user_id, {}).get("address")
-	if web3_mgr and user_address:
-		try:
-			onchain_points = int(web3_mgr.contract.functions.balances(user_address).call())
-		except Exception as e:
-			st.warning(f"オンチェーン残高の取得に失敗しました: {e}")
 
 	# ユーザーが獲得したスコア（bets の集計）
 	# bets のフォーマットは自由に変わるので、'user' と 'amount' または 'reward' を参照する
@@ -79,14 +68,7 @@ def main():
 				extra += int(b.get("reward", b.get("amount", 0) or 0))
 		name = "自分" if uid == user_id else uid
 		score = pts + extra
-		# users に address があればオンチェーン残高を加算（可能な場合のみ）
-		addr = info.get("address")
-		if web3_mgr and addr:
-			try:
-				bal = int(web3_mgr.contract.functions.balances(addr).call())
-				score += bal
-			except Exception:
-				pass
+		# オンチェーン残高はここでは自動加算しない（必要なら resolve 時に参照）
 		participants.append({"name": name, "score": score})
 
 	# 追加で既存のサンプル参加者を入れておく（重複を避ける）
@@ -121,10 +103,10 @@ def main():
 	cols = st.columns([1, 2, 1])
 	cols[0].metric(label="あなたのベースポイント", value=base_points)
 	cols[1].metric(label="今回獲得したスコア", value=got_score)
-	cols[2].metric(label="オンチェーン残高", value=onchain_points)
+	cols[2].metric(label="オンチェーン残高（未使用）", value=onchain_points)
 
 	st.markdown("---")
-	st.metric(label="合計スコア（ベース + 獲得 + オンチェーン）", value=total_score + onchain_points)
+	st.metric(label="合計スコア（ベース + 獲得）", value=total_score)
 	st.metric(label="あなたの順位", value=f"{my_rank} / {len(df)}")
 
 	st.markdown("---")
@@ -196,6 +178,49 @@ def main():
 			st.markdown(f"- **{m.get('title', 'タイトル未設定')}** （ID: {m.get('id')}） - 結果: `{m.get('result', '未確定')}`")
 	else:
 		st.write("まだ終了したイベントはありません。")
+
+	# 管理者用: 市場を確定するボタン（オンチェーン優先、失敗時はローカルでフォールバック）
+	# シンプル実装: ユーザーID が 'admin' の場合のみ表示（必要なら条件を変更してください）
+	if user_id == "admin":
+		st.markdown("---")
+		st.subheader("管理者操作: 市場の結果を確定")
+		with st.expander("オンチェーンで市場を確定（resolve）"):
+			mid = st.text_input("市場 ID を入力", key="resolve_mid")
+			outcome = st.selectbox("結果を選択", ["yes", "no"], key="resolve_outcome")
+			if st.button("確定（オンチェーン実行）"):
+				if not mid:
+					st.error("市場 ID を入力してください")
+				else:
+					try:
+						if Web3Manager is None:
+							st.warning("Web3 が利用できません。ローカルデータで確定します。")
+							# ローカルフォールバック: markets を更新して保存
+							for m in markets:
+								if str(m.get("id")) == str(mid):
+									m["status"] = "closed"
+									m["result"] = outcome
+							data["markets"] = markets
+							save_data(data)
+							st.success("ローカルデータで市場を確定しました（フォールバック）。")
+							st.experimental_rerun()
+						else:
+							# Web3Manager を初期化して resolve_market を実行
+							web3_mgr = Web3Manager()
+							onchain_outcome = True if outcome == "yes" else False
+
+							utils.resolve_market(self, market_id, outcome)
+							st.write("結果:", result)
+							st.success(f"オンチェーンでの確定リクエスト送信完了: {str(receipt)}")
+							# ローカルにも状態を反映しておく
+							for m in markets:
+								if str(m.get("id")) == str(mid):
+									m["status"] = "closed"
+									m["result"] = outcome
+							data["markets"] = markets
+							save_data(data)
+							st.experimental_rerun()
+					except Exception as e:
+						st.error(f"市場確定に失敗しました: {e}")
 
 
 if __name__ == "__main__":
