@@ -29,7 +29,7 @@ class Web3Manager:
         # SBTのアドレスとABIをここに直接書くか、.envに追加して読み込む
         sbt_address = "0x6AF471Be518c3C73A9aB83669f791D80e6B8Ea62"
 
-        sbt_abi_path = os.path.join(current_dir, 'utils.sbt_abi.json')
+        sbt_abi_path = os.path.join(current_dir, 'sbt_abi.json')
 
         if os.path.exists(sbt_abi_path):
             with open(sbt_abi_path, "r") as f:
