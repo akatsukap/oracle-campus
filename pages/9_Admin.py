@@ -11,6 +11,9 @@ st.set_page_config(page_title="管理画面")
 
 st.title("管理者パネル")
 
+# Load data once at the start
+data = utils.load_data()
+
 # -------------------------
 # ① マーケット作成 UI
 # -------------------------
@@ -49,7 +52,8 @@ end_time = time(hour, minute)
 end_datetime = datetime.combine(end_date, end_time).isoformat()
 
 if st.button("作成"):
-    utils.create_market(title, description, end_datetime)
+    utils.create_market(data, title, description, end_datetime)
+    utils.save_data(data)
     st.success("マーケットを作成しました！🌟")
 
 
@@ -61,24 +65,31 @@ st.markdown("---")
 # -------------------------
 st.header("結果確定パネル")
 
-markets = utils.list_markets()
+markets = utils.list_markets(data)
 now = datetime.now()
 
-targets = [
-    m for m in markets
-    if m["status"] == "open" and datetime.fromisoformat(m["end_datetime"]) < now
-]
+targets = []
+for m in markets:
+    if m.get("status") == "open":
+        end_dt_str = m.get("end_datetime")
+        if end_dt_str:
+            try:
+                if datetime.fromisoformat(end_dt_str) < now:
+                    targets.append(m)
+            except (ValueError, TypeError):
+                pass
 
 if not targets:
     st.info("確定可能なマーケットはありません。")
 else:
     for m in targets:
         st.subheader(m["title"])
-        st.write(m["description"])
+        st.write(m.get("description", ""))
 
         result = st.radio("結果", ["Yes", "No"], key=f"r_{m['id']}")
 
         if st.button("結果を確定する", key=f"b_{m['id']}"):
-            utils.resolve_market(m["id"], result)
+            utils.resolve_market(data, m["id"], result)
+            utils.save_data(data)
             st.success(f"{m['title']} の結果を {result} に確定しました！")
             st.rerun()

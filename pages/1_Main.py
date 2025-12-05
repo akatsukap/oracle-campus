@@ -1,6 +1,6 @@
 # ...existing code...
 import streamlit as st
-from utils import load_data
+from utils import load_data, normalize_onchain_market, merge_markets
 import time
 from datetime import datetime
 
@@ -48,7 +48,7 @@ if not user_id:
     st.warning("まずトップページでユーザーを選択してください。")
     st.stop()
 
-# データの読み込み（ローカル）
+# データの読み込み（ローカル）- uses caching internally
 data = load_data() or {}
 users = data.get("users", {}) if isinstance(data, dict) else {}
 local_markets = data.get("markets", []) if isinstance(data, dict) else []
@@ -79,41 +79,11 @@ with col2:
     else:
         onchain_raw = []
 
-# onchain_raw をアプリ内部の market 形式に変換
-def _to_local_market(m):
-    # fibase の get_all_markets は id, title, endTime, totalYes, totalNo, resolved, outcome
-    try:
-        end_ts = int(m.get("endTime") or 0)
-    except Exception:
-        end_ts = 0
-    status = "closed" if m.get("resolved") else ("open" if (end_ts == 0 or end_ts > int(time.time())) else "closed")
-    return {
-        "id": str(m.get("id")),
-        "title": m.get("title") or "タイトル未設定",
-        "description": m.get("description", "") or "",
-        "end_time": end_ts,
-        "yes_bets": int(m.get("totalYes", 0)),
-        "no_bets": int(m.get("totalNo", 0)),
-        "status": status,
-        "result": m.get("outcome") if m.get("resolved") else None,
-        "source": "onchain",
-    }
+# Use shared function for on-chain market normalization
+onchain_markets = [normalize_onchain_market(m) for m in onchain_raw]
 
-onchain_markets = [_to_local_market(m) for m in onchain_raw]
-
-# ローカル市場にも source フラグを付ける
-for lm in local_markets:
-    lm.setdefault("id", str(lm.get("id", "")))
-    lm["source"] = lm.get("source", "local")
-
-# マージ（onchain を優先し、存在しないローカルは追加）
-merged = {}
-for m in local_markets:
-    merged[str(m.get("id"))] = m
-for m in onchain_markets:
-    merged[str(m.get("id"))] = m  # onchain があれば上書き
-
-markets = list(merged.values())
+# Use shared function for merging markets
+markets = merge_markets(local_markets, onchain_markets)
 
 # ユーザー情報の確認
 user = users.get(user_id)
