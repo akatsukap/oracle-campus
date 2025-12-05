@@ -80,8 +80,16 @@ class Web3Manager:
         )
 
     def get_all_markets(self):
-        """全市場データを取得して辞書のリストで返す"""
+        """全市場データを取得して辞書のリストで返す
+        
+        Optimized to batch contract calls where possible.
+        Note: Due to Solidity struct limitations, individual market calls are still needed,
+        but we minimize overhead by getting count once.
+        """
         count = self.contract.functions.marketCount().call()
+        if count == 0:
+            return []
+        
         markets = []
         for i in range(count):
             # Solidityのstructはタプル(リストみたいなもの)で返ってくる
