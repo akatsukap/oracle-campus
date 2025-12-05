@@ -3,8 +3,25 @@ import os  # 追加
 import time
 from datetime import datetime
 
-import streamlit as st
+# 互換性ありの再実行ヘルパー
+def _safe_rerun():
+    """st.experimental_rerun が無ければ内部の RerunException を投げる / 最終フォールバックで停止する"""
+    try:
+        # 標準的な API があれば使う
+        if hasattr(st, "experimental_rerun"):
+            st.rerun()
+            return
+    except Exception:
+        pass
 
+    # internal API に頼る（存在すれば例外を投げて再実行させる）
+    try:
+        from streamlit.runtime.scriptrunner.script_runner import RerunException
+        raise RerunException()
+    except Exception:
+        # 最終フォールバック: セッションフラグを立てて処理を止める
+        st.session_state["_rerun_requested"] = True
+        st.stop()
 
 # --- Web3Manager を安全に初期化（失敗してもアプリが落ちないように） ---
 @st.cache_resource
