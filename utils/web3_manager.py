@@ -24,6 +24,19 @@ class Web3Manager:
             address=os.getenv("CONTRACT_ADDRESS"), 
             abi=abi
         )
+
+        #【追加】SBTコントラクトの読み込み
+        # SBTのアドレスとABIをここに直接書くか、.envに追加して読み込む
+        sbt_address = "0x6AF471Be518c3C73A9aB83669f791D80e6B8Ea62"
+
+        sbt_abi_path = os.path.join(current_dir, 'utils.sbt_abi.json')
+
+        if os.path.exists(sbt_abi_path):
+            with open(sbt_abi_path, "r") as f:
+                sbt_abi = json.load(f)
+            self.sbt_contract = self.w3.eth.contract(address=sbt_address, abi=sbt_abi)
+        else:
+            print("⚠️ SBT ABI file not found!")
         
         print(f"Connected to Web3: {self.w3.is_connected()}")
 
@@ -100,3 +113,19 @@ class Web3Manager:
                 "outcome": m[6]
             })
         return markets
+
+    #【追加】SBTを持っているか確認する関数
+    def has_sbt(self, user_address):
+        try:
+            balance = self.sbt_contract.functions.balanceOf(user_address).call()
+            return balance > 0
+        except Exception as e:
+            print(f"SBT Check Error: {e}")
+            return False
+
+    #【追加】SBTを発行する関数（管理者権限で実行）
+    def mint_sbt(self, target_user_address):
+        print(f"Minting SBT to {target_user_address}")
+        return self._send_transaction(
+            self.sbt_contract.functions.safeMint(target_user_address)
+        )
