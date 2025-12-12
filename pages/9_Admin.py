@@ -8,21 +8,7 @@
 # from datetime import datetime, time
 
 # パスを通す
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# ---------------------------------------------
-# 🔒 ① ここにアクセス制限を追加！
-# ---------------------------------------------
-st.set_page_config(page_title="管理者画面", layout="wide", page_icon="🛡️")
-
-# セッションから現在のユーザーIDを取得
-user_id = st.session_state.get("user_id")
-
-# admin以外なら追い出す
-if user_id != "admin":
-    st.error("⛔️ アクセス権限がありません！")
-    st.warning("このページは管理者専用です。サイドバーから他のページに移動してください。")
-    st.stop()  # ←これで処理を強制終了させる
 
 # st.set_page_config(page_title="管理画面")
 
@@ -105,6 +91,20 @@ from datetime import datetime, time
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# ---------------------------------------------
+# 🔒 ① ここにアクセス制限を追加！
+# ---------------------------------------------
+st.set_page_config(page_title="管理者画面", layout="wide", page_icon="🛡️")
+
+# セッションから現在のユーザーIDを取得
+user_id = st.session_state.get("user_id")
+
+# admin以外なら追い出す
+if user_id != "admin":
+    st.error("⛔️ アクセス権限がありません！")
+    st.warning("このページは管理者専用です。サイドバーから他のページに移動してください。")
+    st.stop()  # ←これで処理を強制終了させる
 from utils.web3_manager import Web3Manager
 # 1. Web3接続チェック
 try:

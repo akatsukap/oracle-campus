@@ -27,6 +27,7 @@ class Web3Manager:
 
         #【追加】SBTコントラクトの読み込み
         # SBTのアドレスとABIをここに直接書くか、.envに追加して読み込む
+        """
         sbt_address = "0x6AF471Be518c3C73A9aB83669f791D80e6B8Ea62"
 
         sbt_abi_path = os.path.join(current_dir, 'sbt_abi.json')
@@ -39,7 +40,7 @@ class Web3Manager:
             print("⚠️ SBT ABI file not found!")
         
         print(f"Connected to Web3: {self.w3.is_connected()}")
-
+    """
     def _send_transaction(self, func_call):
         """トランザクションを作って、署名して、送る共通関数"""
         nonce = self.w3.eth.get_transaction_count(self.account.address)
