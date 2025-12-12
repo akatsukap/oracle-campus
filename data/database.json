@@ -1,13 +1,67 @@
 {
     "users": {
-        "student1": {
-            "points": 1000
-        },
-        "student2": {
-            "points": 1000
-        },
         "admin": {
             "points": 99999
+        },
+        "user1": {
+            "points": 870
+        },
+        "user2": {
+            "points": 0
+        },
+        "user3": {
+            "points": 1000
         }
-    }
-}
+    },
+    "markets": [
+        {
+            "id": 1,
+            "title": "明日の天気は晴れか？",
+            "description": "明日の昼12時時点で晴れているかどうか。",
+            "status": "open",
+            "yes_bets": 1077,
+            "no_bets": 30,
+            "result": null,
+            "end_time": 0,
+            "source": "local"
+        },
+        {
+            "id": 2,
+            "title": "今週の学食来客数は1,000人を超える？",
+            "description": "月〜金の合計来客数。",
+            "status": "open",
+            "yes_bets": 23,
+            "no_bets": 0,
+            "result": null,
+            "end_time": 0,
+            "source": "local"
+        }
+    ],
+    "bets": [
+        {
+            "user": "user2",
+            "market_id": 2,
+            "choice": "yes",
+            "amount": 1,
+            "ts": "2025-12-02T04:02:50.779834"
+        },
+        {
+            "user": "user2",
+            "market_id": 1,
+            "choice": "yes",
+            "amount": 1,
+            "ts": "2025-12-02T04:03:34.582795"
+        },
+        {
+            "user": "user2",
+            "market_id": 2,
+            "choice": "yes",
+            "amount": 10,
+            "ts": "2025-12-02T04:03:49.317249"
+        },
+        {
+            "user": "user2",
+            "market_id": 2,
+            "choice": "yes",
+            "amount": 1,
+            "ts": "2025-12-02T04:0
