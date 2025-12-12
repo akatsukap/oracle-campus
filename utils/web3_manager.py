@@ -51,7 +51,7 @@ class Web3Manager:
         # ガス代の見積もり（少し多めに設定）
         tx_data = func_call.build_transaction({
             'chainId': self.chain_id,
-            'gas': 2000000,
+            'gas': 500000,
             'gasPrice': self.w3.eth.gas_price,
             'nonce': nonce,
         })
