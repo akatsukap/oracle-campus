@@ -1,173 +1,239 @@
 import streamlit as st
-import utils
 import time
 from datetime import datetime
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
+# ═══════════════════════════════════════════════════════════════
+# ブロックチェーン専用版 Vote.py
+# オンチェーンのみで動作、database.json は使用しない
+# ═══════════════════════════════════════════════════════════════
 
-# Safe initialization for Web3 manager (returns None on error)
+# Web3Manager を安全に初期化
 @st.cache_resource
 def get_web3_manager_safe():
 	try:
-		from data.fibase import Web3Manager
-
-		return Web3Manager()
+		from utils.web3_manager import Web3Manager
+		mgr = Web3Manager()
+		return mgr, None  # (manager, error)
 	except Exception as e:
-		st.session_state.setdefault("_web3_init_error", str(e))
-		return None
-
+		return None, str(e)
 
 st.title("投票ページ 🗳️")
 
-# 必要なセッション情報
-user_id = st.session_state.get("user_id")
-selected_market = st.session_state.get("selected_market")
+# ─────────────────────────────
+# 接続状態を表示
+# ─────────────────────────────
+web3_mgr, web3_error = get_web3_manager_safe()
 
-if not user_id:
-	st.warning("まずトップページでユーザーを選択してください。")
-	st.stop()
-
-# データ読み込み
-data = utils.load_data()
-users = data.get("users", {})
-local_markets = data.get("markets", [])
-
-web3_mgr = get_web3_manager_safe()
-
-# on-chain markets (if any)
-onchain_raw = []
+# 接続状態インジケーター
 if web3_mgr:
 	try:
-		onchain_raw = web3_mgr.get_all_markets() or []
-	except Exception:
-		onchain_raw = []
+		is_connected = web3_mgr.w3.is_connected()
+		account_addr = web3_mgr.account.address
+		balance = web3_mgr.get_balance()
+		
+		# 接続成功時の表示
+		col1, col2, col3 = st.columns(3)
+		with col1:
+			st.metric("ブロックチェーン", "✅ 接続中")
+		with col2:
+			st.metric("ネットワーク", "Sepolia")
+		with col3:
+			st.metric("所持ポイント", f"{balance} OCP")
+		
+		st.info(f"ウォレット: `{account_addr}`")
+		
+	except Exception as e:
+		st.error(f"❌ 接続情報取得エラー: {e}")
+		st.stop()
+else:
+	st.error(f"❌ ブロックチェーン接続失敗")
+	st.error(f"エラー詳細: {web3_error}")
+	st.info("""
+	以下を確認してください：
+	1. `.env` ファイルに以下を設定
+	   - WEB3_RPC_URL: Sepolia RPC URL
+	   - PRIVATE_KEY: ウォレットの秘密鍵
+	   - CONTRACT_ADDRESS: デプロイされたコントラクトアドレス
+	2. `abi.json` がプロジェクトルートに存在
+	3. web3.py, python-dotenv がインストール済み
+	""")
+	st.stop()
 
+st.divider()
 
-def normalize_onchain(m):
+# ─────────────────────────────
+# ブロックチェーンから市場データ取得
+# ─────────────────────────────
+with st.spinner("ブロックチェーンから市場情報を取得中…"):
 	try:
-		end_ts = int(m.get("endTime") or 0)
-	except Exception:
-		end_ts = 0
-	status = "closed" if m.get("resolved") else ("open" if (end_ts == 0 or end_ts > int(time.time())) else "closed")
-	return {
-		"id": str(m.get("id")),
-		"title": m.get("title") or "タイトル未設定",
-		"description": m.get("description", "") or "",
-		"end_time": end_ts,
-		"yes_bets": int(m.get("totalYes", 0)),
-		"no_bets": int(m.get("totalNo", 0)),
-		"status": status,
-		"result": m.get("outcome") if m.get("resolved") else None,
-		"source": "onchain",
-	}
-
-
-onchain_markets = [normalize_onchain(m) for m in onchain_raw]
-
-for lm in local_markets:
-	lm.setdefault("id", str(lm.get("id", "")))
-	lm.setdefault("end_time", lm.get("end_datetime") or 0)
-	lm.setdefault("source", lm.get("source", "local"))
-
-# Merge markets: onchain takes priority
-merged = {m["id"]: m for m in local_markets}
-for m in onchain_markets:
-	merged[m["id"]] = m
-markets = list(merged.values())
-
-# If no market is selected, ask user to choose
-if not selected_market:
-	st.info("投票するイベントをメイン画面から選んでください。\n(またはこのページで選択できます)")
-	# show a dropdown to select
-	options = [(m.get("id"), m.get("title")) for m in markets]
-	if not options:
-		st.warning("現在、投票可能なイベントがありません。")
+		markets = web3_mgr.get_all_markets() or []
+	except Exception as e:
+		st.error(f"市場データ取得エラー: {e}")
 		st.stop()
 
-	sel = st.selectbox("投票するイベントを選ぶ", options=[(id, title) for id, title in options], format_func=lambda x: f"{x[0]} - {dict(options)[x[0]]}")
-	if st.button("このイベントを選択して投票へ進む"):
-		st.session_state["selected_market"] = sel[0] if isinstance(sel, tuple) else sel
-		st.rerun()
-
+if not markets:
+	st.warning("現在、投票可能なイベントがありません。")
 	st.stop()
 
-# find selected market
+# ─────────────────────────────
+# マーケット選択
+# ─────────────────────────────
+# ─────────────────────────────
+# マーケット選択
+# ─────────────────────────────
+selected_market = st.session_state.get("selected_market")
+
+if not selected_market:
+	st.subheader("📍 投票するイベントを選択")
+	
+	# デバッグ: 最初のマーケット情報を表示
+	with st.expander("🔍 デバッグ：マーケットデータ構造"):
+		if markets:
+			st.json(markets[0])
+	
+	options = []
+	for m in markets:
+		now_ts = int(time.time())
+		for m in markets:
+			# 除外条件: すでに resolved のもの
+			if m.get("resolved"):
+				continue
+			# 除外条件: endTime が設定されていて締め切りを過ぎているもの
+			try:
+				end_ts = int(m.get("endTime", 0) or 0)
+			except Exception:
+				end_ts = 0
+			if end_ts != 0 and end_ts <= now_ts:
+				# 締め切りを過ぎているため選択肢に含めない
+				continue
+			# 表示ラベル作成
+			title = m.get('title', 'タイトル未設定')
+			yes_total = m.get('totalYes', 0)
+			no_total = m.get('totalNo', 0)
+			option_label = f"{title} (Yes: {yes_total} / No: {no_total} OCP)"
+			options.append((str(m.get("id")), option_label))
+	
+	if not options:
+		st.warning("現在、投票受付中のイベントはありません。")
+		st.stop()
+	
+	sel = st.selectbox(
+		"投票するイベント",
+		options=options,
+		format_func=lambda x: x[1]
+	)
+	
+	if st.button("このイベントを選択"):
+		st.session_state["selected_market"] = sel[0]
+		st.rerun()
+	
+	st.stop()
+
+# ─────────────────────────────
+# 選択したマーケット詳細表示
+# ─────────────────────────────
 mid = str(selected_market)
 market = next((m for m in markets if str(m.get("id")) == mid), None)
-if not market:
-	st.error("選択したイベントが見つかりません。メイン画面に戻ってもう一度選んでください。")
-	st.stop()
 
+if not market:
+	st.error("選択したイベントが見つかりません。")
+	st.session_state.pop("selected_market", None)
+	st.rerun()
+
+# マーケット情報
 st.header(f"投票：{market.get('title')}")
 if market.get("description"):
 	st.write(market.get("description"))
 
-# show status
-if market.get("status") != "open":
-	st.warning("このイベントはすでに締め切られています（投票不可）。")
+# 終了時間チェック
+end_time = int(market.get("endTime", 0))
+now_ts = int(time.time())
+is_open = not market.get("resolved") and (end_time == 0 or end_time > now_ts)
+
+if not is_open:
+	st.warning("❌ このイベントは締め切られています（投票不可）。")
+	if st.button("戻る"):
+		st.session_state.pop("selected_market", None)
+		st.rerun()
 	st.stop()
 
-user = users.get(user_id)
-if not user:
-	st.error("ユーザー情報が見つかりません。トップページでユーザーを選び直してください。")
-	st.stop()
+st.success("✅ 投票受付中です")
 
-st.write(f"所持ポイント: **{user.get('points', 0)} OCP**")
+# 投票結果表示
+col1, col2 = st.columns(2)
+with col1:
+	st.metric("Yes 投票合計", f"{market.get('totalYes', 0)} OCP")
+with col2:
+	st.metric("No 投票合計", f"{market.get('totalNo', 0)} OCP")
+
+# Yes率表示
+total_pool = int(market.get('totalYes', 0) or 0) + int(market.get('totalNo', 0) or 0)
+if total_pool > 0:
+	yes_ratio = int(market.get('totalYes', 0) or 0) / total_pool
+	st.progress(yes_ratio, text=f"Yes率: {int(yes_ratio * 100)}%")
+else:
+	st.text("まだ投票がありません")
+
+st.divider()
+
+# ─────────────────────────────
+# 投票フォーム
+# ─────────────────────────────
+st.subheader("🗳️ 投票する")
 
 col1, col2 = st.columns(2)
 with col1:
-	choice = st.radio("どちらに投票しますか？", ("Yes", "No"), horizontal=True)
+	choice = st.radio("投票内容", ("Yes", "No"), horizontal=True)
 with col2:
-	max_points = max(0, int(user.get("points", 0)))
-	amount = st.number_input("投入ポイント", min_value=1, max_value=max_points if max_points>0 else 1, value=1, step=1)
+	amount = st.number_input("投入ポイント", min_value=1, value=10, step=1)
 
-st.markdown("---")
-
-if st.button("投票する（送信）"):
-	is_yes = True if choice == "Yes" else False
-	# On-chain voting if source == onchain and web3 available
-	if market.get("source") == "onchain" and web3_mgr:
+# ─────────────────────────────
+# 投票送信ボタン
+# ─────────────────────────────
+if st.button("投票する（トランザクション送信）", type="primary"):
+	is_yes = choice == "Yes"
+	
+	with st.spinner("🔄 ブロックチェーンにトランザクションを送信中…"):
 		try:
 			receipt = web3_mgr.vote(int(market.get("id")), is_yes, int(amount))
-			st.success("オンチェーン投票が送信されました。トランザクションレシートを確認してください。")
+			
+			# トランザクションハッシュ取得
+			tx_hash = receipt.transactionHash.hex() if hasattr(receipt, "transactionHash") else str(receipt)
+			
+			st.success("✅ 投票がブロックチェーンに記録されました！")
+			
 			st.json({
-				"tx_hash": receipt.transactionHash.hex() if hasattr(receipt, "transactionHash") else str(receipt)
+				"トランザクションハッシュ": tx_hash,
+				"マーケットID": market.get("id"),
+				"投票内容": choice,
+				"投入ポイント": amount,
+				"ステータス": "成功"
 			})
+			
+			# Etherscan リンク表示
+			etherscan_url = f"https://sepolia.etherscan.io/tx/{tx_hash}"
+			st.markdown(f"📍 **[Etherscan で トランザクションを確認]({etherscan_url})**")
+			
+			time.sleep(2)
+			
+			# 選択をリセット
+			st.session_state.pop("selected_market", None)
+			st.rerun()
+			
 		except Exception as e:
-			st.error(f"オンチェーン投票に失敗しました: {e}")
-	else:
-		# Local fallback: update JSON
-		pts = int(user.get("points", 0))
-		if amount > pts:
-			st.error("所持ポイントが不足しています。")
-		else:
-			# register bet record
-			bet = {
-				"user": user_id,
-				"market_id": market.get("id"),
-				"choice": "yes" if is_yes else "no",
-				"amount": int(amount),
-				"ts": datetime.utcnow().isoformat()
-			}
-			data.setdefault("bets", []).append(bet)
+			st.error(f"❌ 投票に失敗しました")
+			st.error(f"エラー詳細: {e}")
 
-			# deduct points
-			users[user_id]["points"] = pts - int(amount)
+st.divider()
 
-			# increase aggregate
-			# find market in local markets list and update
-			for m in local_markets:
-				if str(m.get("id")) == str(market.get("id")):
-					if is_yes:
-						m["yes_bets"] = int(m.get("yes_bets", 0)) + int(amount)
-					else:
-						m["no_bets"] = int(m.get("no_bets", 0)) + int(amount)
-					break
-
-			utils.save_data(data)
-			st.success("投票を受け付けました！（ローカルデータに保存されました）")
-
-	# 送信後は選択解除してメインに戻る
+# ─────────────────────────────
+# 戻るボタン
+# ─────────────────────────────
+if st.button("戻る"):
 	st.session_state.pop("selected_market", None)
 	st.rerun()
 
