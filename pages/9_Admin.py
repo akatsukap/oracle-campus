@@ -130,11 +130,22 @@ with tab1:
     st.write("---")
     st.subheader("締め切り設定")
     
-    col1, col2 = st.columns(2)
+    col1, col2 ,col3= st.columns(3)
     with col1:
         end_date = st.date_input("日付")
     with col2:
-        end_time_val = st.time_input("時刻", value=time(12, 0))
+        hour = st.selectbox(
+        "時（0〜23）",
+        options=list(range(24)),
+        index=12  # 初期選択＝12時
+     )
+    with col3:
+        minute = st.selectbox("分（0〜59）",
+        options=list(range(60)),
+        index=0
+        )
+    
+    end_time_val = time(hour, minute)
 
     if st.button("🚀 ブロックチェーンに発行する"):
         if not title:
