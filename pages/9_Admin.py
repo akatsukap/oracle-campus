@@ -1,88 +1,3 @@
-# import os
-# import sys
-# # pages フォルダの親（プロジェクトルート）を path に追加して utils を import 可能にする
-# sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-# import streamlit as st
-# from utils.web3_manager.py import utils
-# from datetime import datetime, time
-
-# st.set_page_config(page_title="管理画面")
-
-# st.title("管理者パネル")
-
-# # -------------------------
-# # ① マーケット作成 UI
-# # -------------------------
-# st.header("マーケット作成")
-
-# title = st.text_input("タイトル")
-# description = st.text_input("説明文（任意）")
-
-# # 日付（カレンダー）
-# end_date = st.date_input("締め切り日（カレンダーから選択）")
-
-# st.write("締め切り時刻（時・分を選択）")
-
-# col1, col2 = st.columns(2)
-
-# # --- 時をドロップダウンで選択 ---
-# with col1:
-#     hour = st.selectbox(
-#         "時（0〜23）",
-#         options=list(range(24)),
-#         index=12  # 初期選択＝12時
-#     )
-
-# # --- 分をドロップダウンで選択 ---
-# with col2:
-#     minute = st.selectbox(
-#         "分（0〜59）",
-#         options=list(range(60)),
-#         index=0
-#     )
-
-# # time オブジェクト作成
-# end_time = time(hour, minute)
-
-# # ISO形式 datetime
-# end_datetime = datetime.combine(end_date, end_time).isoformat()
-
-# if st.button("作成"):
-#     utils.create_market(title, description, end_datetime)
-#     st.success("マーケットを作成しました！🌟")
-
-
-# st.markdown("---")
-
-
-# # -------------------------
-# # ② 結果確定 UI
-# # -------------------------
-# st.header("結果確定パネル")
-
-# markets = utils.list_markets()
-# now = datetime.now()
-
-# targets = [
-#     m for m in markets
-#     if m["status"] == "open" and datetime.fromisoformat(m["end_datetime"]) < now
-# ]
-
-# if not targets:
-#     st.info("確定可能なマーケットはありません。")
-# else:
-#     for m in targets:
-#         st.subheader(m["title"])
-#         st.write(m["description"])
-
-#         result = st.radio("結果", ["Yes", "No"], key=f"r_{m['id']}")
-
-#         if st.button("結果を確定する", key=f"b_{m['id']}"):
-#             utils.resolve_market(m["id"], result)
-#             st.success(f"{m['title']} の結果を {result} に確定しました！")
-#             st.rerun()
-
 import streamlit as st
 from datetime import datetime, time
 import sys
@@ -113,11 +28,22 @@ with tab1:
     st.write("---")
     st.subheader("締め切り設定")
     
-    col1, col2 = st.columns(2)
+    col1, col2 ,col3= st.columns(3)
     with col1:
         end_date = st.date_input("日付")
     with col2:
-        end_time_val = st.time_input("時刻", value=time(12, 0))
+        hour = st.selectbox(
+        "時（0〜23）",
+        options=list(range(24)),
+        index=12  # 初期選択＝12時
+     )
+    with col3:
+        minute = st.selectbox("分（0〜59）",
+        options=list(range(60)),
+        index=0
+        )
+    
+    end_time_val = time(hour, minute)
 
     if st.button("🚀 ブロックチェーンに発行する"):
         if not title:
