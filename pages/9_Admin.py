@@ -7,6 +7,9 @@
 # from utils.web3_manager.py import utils
 # from datetime import datetime, time
 
+# パスを通す
+
+
 # st.set_page_config(page_title="管理画面")
 
 # st.title("管理者パネル")
@@ -88,6 +91,20 @@ from datetime import datetime, time
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# ---------------------------------------------
+# 🔒 ① ここにアクセス制限を追加！
+# ---------------------------------------------
+st.set_page_config(page_title="管理者画面", layout="wide", page_icon="🛡️")
+
+# セッションから現在のユーザーIDを取得
+user_id = st.session_state.get("user_id")
+
+# admin以外なら追い出す
+if user_id != "admin":
+    st.error("⛔️ アクセス権限がありません！")
+    st.warning("このページは管理者専用です。サイドバーから他のページに移動してください。")
+    st.stop()  # ←これで処理を強制終了させる
 from utils.web3_manager import Web3Manager
 # 1. Web3接続チェック
 try:
@@ -113,11 +130,22 @@ with tab1:
     st.write("---")
     st.subheader("締め切り設定")
     
-    col1, col2 = st.columns(2)
+    col1, col2 ,col3= st.columns(3)
     with col1:
         end_date = st.date_input("日付")
     with col2:
-        end_time_val = st.time_input("時刻", value=time(12, 0))
+        hour = st.selectbox(
+        "時（0〜23）",
+        options=list(range(24)),
+        index=12  # 初期選択＝12時
+     )
+    with col3:
+        minute = st.selectbox("分（0〜59）",
+        options=list(range(60)),
+        index=0
+        )
+    
+    end_time_val = time(hour, minute)
 
     if st.button("🚀 ブロックチェーンに発行する"):
         if not title:

@@ -1,43 +1,92 @@
 import streamlit as st
-from utils import load_data, save_data, init_sample_data
+import os
+import sys
 
-# ページ設定（タイトルなど）
-st.set_page_config(
-    page_title="Oracle Campus",
-    page_icon="🎓",
-    layout="wide",
-)
+# utilsフォルダを読み込めるようにパスを通す
+sys.path.insert(0, os.path.dirname(__file__))
+from utils import load_data, save_data
 
-st.title("Oracle Campus 🎓")
-st.subheader("ユーザー選択（ログイン）")
+def main():
+    st.set_page_config(
+        page_title="Oracle Campus - Login",
+        page_icon="🎓",
+        layout="centered"  # ログイン画面なので中央寄せが見やすい
+    )
 
+    # ----------------------------------------
+    # 1. タイトルと導入
+    # ----------------------------------------
+    st.title("🎓 Oracle Campus")
+    st.caption("ブロックチェーン × 集合知による未来予測プラットフォーム")
+    
+    st.markdown("""
+    ### Welcome!
+    ここは、大学内のあらゆる未来を予測する市場です。
+    あなたの予測能力（インサイト）を試してみましょう。
+    """)
 
-# 1. データ読み込み ＋ なければ初期化
-data = load_data()
+    st.divider()
 
-if not data.get("users"):
-    # 初回はサンプルデータで初期化
-    data = init_sample_data()
-    save_data(data)
+    # ----------------------------------------
+    # 2. ユーザー選択（擬似ログイン）
+    # ----------------------------------------
+    st.subheader("👤 ログイン設定")
+    st.info("デモ用にユーザーを選択してください。（パスワード不要）")
 
-users = list(data["users"].keys())
+    # ローカルデータからユーザーリストを読み込む
+    data = load_data()
+    users = data.get("users", {})
+    
+    # もしデータが空なら、デフォルトのユーザーを作る
+    if not users:
+        users = {
+            "student1": {"points": 1000},
+            "student2": {"points": 1000},
+            "admin": {"points": 99999}
+        }
+        data["users"] = users
+        save_data(data)
 
-if not users:
-    st.error("ユーザーデータが存在しません。utils.init_sample_data などで作成してください。")
-    st.stop()
+    # 選択肢を作成 (adminを先頭に、あとは辞書順)
+    user_list = list(users.keys())
+    # adminがいればリストの先頭に持ってくる小技
+    if "admin" in user_list:
+        user_list.remove("admin")
+        user_list.insert(0, "admin")
 
-# 2. session_state に user_id を保持
-if "user_id" not in st.session_state:
-    st.session_state["user_id"] = users[0]
+    # セッションから現在のユーザーを取得（リロードしても忘れないように）
+    current_user = st.session_state.get("user_id", user_list[0])
+    
+    # 選択ボックス（もし現在のユーザーがリストになければ先頭を選択）
+    try:
+        index = user_list.index(current_user)
+    except ValueError:
+        index = 0
 
-selected_user = st.selectbox(
-    "ユーザーを選択してください：",
-    users,
-    index=users.index(st.session_state["user_id"]),
-)
+    selected_user = st.selectbox("利用するユーザーを選択:", user_list, index=index)
 
-st.session_state["user_id"] = selected_user
+    # ----------------------------------------
+    # 3. ログイン確定処理
+    # ----------------------------------------
+    if st.button("🚀 このユーザーで始める", type="primary"):
+        # セッションステートに保存（これが他のページで "user_id" として使われる）
+        st.session_state["user_id"] = selected_user
+        
+        st.success(f"ログインしました: **{selected_user}**")
+        st.caption("左側のサイドバーからページを移動してください。")
+        
+        # ユーザーへの案内表示
+        if selected_user == "admin":
+            st.warning("あなたは「管理者権限」でログインしています。`9_Admin` ページで市場管理が可能です。")
+        else:
+            st.info(f"現在の所持ポイント: {users[selected_user].get('points', 0)} (Local Base)")
 
-st.markdown(f"現在ログイン中のユーザー： **{selected_user}**")
+    # 現在のログイン状態を表示（デバッグ用にも便利）
+    st.markdown("---")
+    if "user_id" in st.session_state:
+        st.write(f"現在のログイン中ユーザー: `{st.session_state['user_id']}`")
+    else:
+        st.write("現在ログアウト状態です。")
 
-st.info("左のサイドバーから **Main / Vote / Results / Admin** ページに移動できます。")
+if __name__ == "__main__":
+    main()
