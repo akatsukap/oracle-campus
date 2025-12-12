@@ -1,0 +1,13 @@
+{
+    "users": {
+        "student1": {
+            "points": 1000
+        },
+        "student2": {
+            "points": 1000
+        },
+        "admin": {
+            "points": 99999
+        }
+    }
+}
