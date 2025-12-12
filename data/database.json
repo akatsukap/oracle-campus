@@ -1,7 +1,7 @@
 {
   "users": {
     "user1": {
-      "points": 989
+      "points": 860
     },
     "user2": {
       "points": 0
@@ -16,8 +16,8 @@
       "title": "明日の天気は晴れか？",
       "description": "明日の昼12時時点で晴れているかどうか。",
       "status": "open",
-      "yes_bets": 998,
-      "no_bets": 0,
+      "yes_bets": 1087,
+      "no_bets": 30,
       "result": null,
       "end_time": 0,
       "source": "local"
@@ -27,7 +27,7 @@
       "title": "今週の学食来客数は1,000人を超える？",
       "description": "月〜金の合計来客数。",
       "status": "open",
-      "yes_bets": 13,
+      "yes_bets": 23,
       "no_bets": 0,
       "result": null,
       "end_time": 0,
@@ -104,6 +104,90 @@
       "choice": "yes",
       "amount": 1,
       "ts": "2025-12-05T08:05:44.855311"
+    },
+    {
+      "user": "user1",
+      "market_id": 2,
+      "choice": "yes",
+      "amount": 10,
+      "ts": "2025-12-12T05:27:20.225803"
+    },
+    {
+      "user": "user1",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 19,
+      "ts": "2025-12-12T05:32:55.405886"
+    },
+    {
+      "user": "user1",
+      "market_id": 1,
+      "choice": "no",
+      "amount": 10,
+      "ts": "2025-12-12T05:37:46.821885"
+    },
+    {
+      "user": "user1",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 10,
+      "ts": "2025-12-12T05:43:04.303185"
+    },
+    {
+      "user": "user1",
+      "market_id": 1,
+      "choice": "no",
+      "amount": 10,
+      "ts": "2025-12-12T05:48:58.147815"
+    },
+    {
+      "user": "user1",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 10,
+      "ts": "2025-12-12T05:55:35.557884"
+    },
+    {
+      "user": "user1",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 10,
+      "ts": "2025-12-12T06:42:12.074052"
+    },
+    {
+      "user": "user1",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 10,
+      "ts": "2025-12-12T06:46:52.298077"
+    },
+    {
+      "user": "user1",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 10,
+      "ts": "2025-12-12T07:04:31.436372"
+    },
+    {
+      "user": "user1",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 10,
+      "ts": "2025-12-12T07:31:16.972921"
+    },
+    {
+      "user": "user1",
+      "market_id": 1,
+      "choice": "no",
+      "amount": 10,
+      "ts": "2025-12-12T07:34:15.696648"
+    },
+    {
+      "user": "user1",
+      "market_id": 1,
+      "choice": "yes",
+      "amount": 10,
+      "ts": "2025-12-12T07:44:24.069510"
     }
   ]
 }

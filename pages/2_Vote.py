@@ -9,8 +9,7 @@ from datetime import datetime
 @st.cache_resource
 def get_web3_manager_safe():
 	try:
-		from data.fibase import Web3Manager
-
+		from utils.web3_manager import Web3Manager
 		return Web3Manager()
 	except Exception as e:
 		st.session_state.setdefault("_web3_init_error", str(e))
