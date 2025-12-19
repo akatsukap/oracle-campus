@@ -3,6 +3,11 @@ import time
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+import style_config as sc
+
+#デザイン統一
+sc.apply_common_style()
+
 
 load_dotenv()
 
@@ -21,7 +26,7 @@ def get_web3_manager_safe():
 	except Exception as e:
 		return None, str(e)
 
-st.title("投票ページ 🗳️")
+st.title("🗳️投票ページ ")
 
 # ─────────────────────────────
 # 接続状態を表示
