@@ -2,13 +2,28 @@ import streamlit as st
 import time
 from datetime import datetime
 import os
+import sys
 from dotenv import load_dotenv
 import style_config as sc
 
 #デザイン統一
 sc.apply_common_style()
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# ---------------------------------------------_
+# 🔒 ① ここにアクセス制限を追加！
+# ---------------------------------------------
+st.set_page_config(page_title="投票画面", layout="wide", page_icon="🗳️")
+
+# セッションから現在のユーザーIDを取得
+user_id = st.session_state.get("user_id")
+
+# admin以外なら追い出す
+if user_id == "admin":
+    st.error("⛔️ アクセス権限がありません！")
+    st.warning("このページはユーザー専用です。サイドバーから他のページに移動してください。")
+    st.stop()  # ←これで処理を強制終了させる
 load_dotenv()
 
 # ═══════════════════════════════════════════════════════════════
