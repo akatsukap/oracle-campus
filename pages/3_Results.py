@@ -3,6 +3,10 @@ from typing import Dict, List
 
 import pandas as pd
 import streamlit as st
+import style_config as sc
+
+#デザイン統一
+sc.apply_common_style()
 
 
 @st.cache_resource
@@ -63,7 +67,7 @@ def _parse_address_lines(raw: str) -> List[str]:
     return addrs
 
 
-st.title("結果・ランキング")
+st.title("🏆結果・ランキング")
 
 user_id = st.session_state.get("user_id")
 if not user_id:
@@ -143,7 +147,7 @@ else:
                 st.error(f"詳細: {e}")
 
 st.markdown("---")
-st.subheader("ウォレット別ランキング（残高順）")
+st.subheader("👑ウォレット別ランキング（残高順）")
 
 default_block = getattr(web3_mgr.account, "address", "")
 address_block = default_block

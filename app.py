@@ -1,6 +1,11 @@
 import streamlit as st
 import os
 import sys
+import style_config as sc
+
+#デザイン統一
+sc.apply_common_style()
+
 
 # utilsフォルダを読み込めるようにパスを通す
 sys.path.insert(0, os.path.dirname(__file__))
