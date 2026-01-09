@@ -90,6 +90,12 @@ import streamlit as st
 from datetime import datetime, time
 import sys
 import os
+import style_config as sc
+
+#デザイン統一
+sc.apply_common_style()
+
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # ---------------------------------------------
@@ -109,7 +115,7 @@ from utils.web3_manager import Web3Manager
 # 1. Web3接続チェック
 try:
     manager = Web3Manager()
-    st.sidebar.success("Web3 接続成功 ✅")
+    st.success("Web3 接続成功 ✅")
 except Exception as e:
     st.error(f"Web3接続エラー: {e}")
     st.warning("⚠️ .envファイルの設定を確認してください。")

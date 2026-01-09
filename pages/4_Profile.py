@@ -1,5 +1,11 @@
 import streamlit as st
 import pandas as pd
+import style_config as sc
+
+#デザイン統一
+sc.apply_common_style()
+
+
 try:
     from utils.web3_manager import Web3Manager
 except ImportError:
